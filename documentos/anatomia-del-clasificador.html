@@ -1,0 +1,790 @@
+<title>Anatomía del Clasificador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] }, svg: { fontCache: 'global' } };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js" id="MathJax-script" async></script>
+
+<style>
+:root{
+  --paper:#f7f7f6;
+  --paper-raised:#ffffff;
+  --paper-sunken:#eef0f2;
+  --line:#e2e3e7;
+  --ink:#1b1d22;
+  --ink-soft:#565a66;
+  --ink-faint:#8a8e99;
+  --accent:#4338ca;
+  --accent-wash:#eae8fb;
+  --amber:#92620f;
+  --amber-wash:#faf1de;
+  --teal:#0f6e64;
+  --teal-wash:#e2f2f0;
+  --code-bg:#1e1e2e;
+  --code-text:#d6d6e5;
+  --shadow:0 1px 2px rgba(20,20,30,.05), 0 10px 28px -14px rgba(20,20,30,.16);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#131418;
+    --paper-raised:#1b1d23;
+    --paper-sunken:#202329;
+    --line:#2c2f37;
+    --ink:#e8e9ec;
+    --ink-soft:#a7abb6;
+    --ink-faint:#6b6f7a;
+    --accent:#9d97ff;
+    --accent-wash:#26234a;
+    --amber:#e3ac52;
+    --amber-wash:#332a17;
+    --teal:#4fc3b6;
+    --teal-wash:#12302c;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 30px -14px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#131418; --paper-raised:#1b1d23; --paper-sunken:#202329; --line:#2c2f37;
+  --ink:#e8e9ec; --ink-soft:#a7abb6; --ink-faint:#6b6f7a;
+  --accent:#9d97ff; --accent-wash:#26234a; --amber:#e3ac52; --amber-wash:#332a17;
+  --teal:#4fc3b6; --teal-wash:#12302c;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 30px -14px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:'Public Sans',ui-sans-serif,system-ui,sans-serif; font-size:16px; line-height:1.65;}
+h1,h2,h3,h4{font-family:'Newsreader',Georgia,serif; text-wrap:balance; color:var(--ink); font-weight:600;}
+::selection{background:var(--accent-wash); color:var(--accent);}
+:focus-visible{outline:2.5px solid var(--accent); outline-offset:2px;}
+a{color:var(--accent);}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+
+.wrap{max-width:860px; margin:0 auto; padding:0 24px 120px;}
+
+/* ---- Portada ---- */
+.portada{padding:56px 0 28px; border-bottom:1.5px solid var(--line);}
+.eyebrow{font-size:12px; letter-spacing:.09em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 10px;}
+.portada h1{font-size:clamp(30px,5vw,44px); margin:0 0 14px; line-height:1.08;}
+.portada p.lead{font-size:17px; color:var(--ink-soft); max-width:62ch; margin:0 0 18px;}
+.meta-row{display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color:var(--ink-faint); font-family:'IBM Plex Mono',monospace;}
+
+/* ---- TOC ---- */
+.toc-bar{
+  position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+  overflow-x:auto; white-space:nowrap; padding:10px 0;
+}
+.toc-bar-inner{max-width:860px; margin:0 auto; padding:0 24px; display:flex; gap:6px;}
+.toc-pill{
+  flex:none; font-size:12.5px; padding:5px 11px; border-radius:999px; color:var(--ink-soft);
+  text-decoration:none; border:1px solid var(--line); font-family:'IBM Plex Mono',monospace;
+}
+.toc-pill:hover{border-color:var(--accent); color:var(--accent);}
+
+.toc-box{
+  background:var(--paper-raised); border:1.4px solid var(--line); border-radius:12px;
+  padding:20px 24px; margin:28px 0; box-shadow:var(--shadow);
+}
+.toc-box p.tt{margin:0 0 10px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint);}
+.toc-box ol{margin:0; padding-left:22px; columns:1; display:grid; grid-template-columns:1fr 1fr; gap:2px 20px;}
+.toc-box li{font-size:14px; margin:3px 0;}
+.toc-box a{color:var(--ink); text-decoration:none;}
+.toc-box a:hover{color:var(--accent);}
+@media (max-width:640px){ .toc-box ol{grid-template-columns:1fr;} }
+
+/* ---- Secciones ---- */
+section.parte{padding:44px 0; border-bottom:1px solid var(--line); scroll-margin-top:60px;}
+section.parte:last-of-type{border-bottom:none;}
+.num-tag{
+  display:inline-flex; align-items:center; justify-content:center;
+  font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700;
+  width:26px; height:26px; border-radius:50%; background:var(--accent-wash); color:var(--accent);
+  margin-right:8px;
+}
+.parte h2{font-size:clamp(22px,3vw,28px); margin:0 0 6px; display:flex; align-items:center; gap:2px;}
+.parte .subt{color:var(--ink-soft); font-size:15px; margin:0 0 22px; max-width:64ch;}
+.parte p{max-width:70ch;}
+.parte ul, .parte ol{max-width:70ch;}
+.parte h3{font-size:18px; margin:28px 0 10px;}
+.parte h4{font-size:15px; margin:20px 0 8px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; font-family:'Public Sans',sans-serif; font-weight:700;}
+
+/* ---- Callouts ---- */
+.callout{border-radius:10px; padding:14px 16px; margin:16px 0; font-size:14px; max-width:70ch;}
+.callout p:last-child{margin-bottom:0;}
+.callout .tt{display:flex; align-items:center; gap:7px; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;}
+.callout-math{background:var(--teal-wash); color:var(--ink);}
+.callout-math .tt{color:var(--teal);}
+.callout-finding{background:var(--amber-wash); color:var(--ink);}
+.callout-finding .tt{color:var(--amber);}
+.callout-code{background:var(--accent-wash); color:var(--ink);}
+.callout-code .tt{color:var(--accent);}
+
+.file-badge{
+  display:inline-flex; align-items:center; gap:6px; font-family:'IBM Plex Mono',monospace; font-size:12.5px;
+  background:var(--paper-sunken); border:1px solid var(--line); border-radius:6px; padding:2px 9px; color:var(--ink-soft);
+}
+
+/* ---- Code blocks ---- */
+.snippet-wrap{margin:14px 0 22px; border-radius:10px; overflow:hidden; box-shadow:var(--shadow); max-width:100%;}
+.snippet-head{
+  background:#15151f; color:#9a9ab0; font-family:'IBM Plex Mono',monospace; font-size:12px;
+  padding:8px 14px; display:flex; justify-content:space-between; border-bottom:1px solid #2a2a3a;
+}
+pre{margin:0; background:var(--code-bg); overflow-x:auto; padding:16px 18px;}
+code{font-family:'IBM Plex Mono',monospace; font-size:13px; line-height:1.6; color:var(--code-text); white-space:pre;}
+.tk-kw{color:#c894ff;}
+.tk-str{color:#9ece6a; font-style:italic;}
+.tk-com{color:#6f7690; font-style:italic;}
+.tk-num{color:#ff9e64;}
+.tk-fn{color:#7dcfff; font-weight:600;}
+.tk-class{color:#e0c084; font-weight:600;}
+.tk-const{color:#f7768e;}
+.tk-builtin{color:#7aa2f7;}
+.tk-dec{color:#e0af68;}
+
+/* ---- Tabla mapa conceptual ---- */
+.tabla-wrap{overflow-x:auto; margin:18px 0;}
+table.mapa{border-collapse:collapse; width:100%; font-size:13.5px; min-width:640px;}
+table.mapa th{
+  text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint);
+  padding:8px 10px; border-bottom:2px solid var(--line);
+}
+table.mapa td{padding:10px 10px; border-bottom:1px solid var(--line); vertical-align:top;}
+table.mapa tr:last-child td{border-bottom:none;}
+
+.resultados-tabla{width:100%; border-collapse:collapse; font-size:14px; margin:16px 0;}
+.resultados-tabla th{text-align:left; font-size:11px; text-transform:uppercase; color:var(--ink-faint); padding:8px 10px; border-bottom:2px solid var(--line);}
+.resultados-tabla td{padding:9px 10px; border-bottom:1px solid var(--line); font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums;}
+.resultados-tabla td:first-child{font-family:'Public Sans',sans-serif;}
+.resultados-tabla tr.win td{font-weight:700; color:var(--teal);}
+
+.paso{display:flex; gap:14px; margin:14px 0;}
+.paso .bola{flex:none; width:28px; height:28px; border-radius:50%; background:var(--paper-sunken); border:1.4px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:var(--ink-soft);}
+.paso .txt{padding-top:2px; font-size:14.5px;}
+.paso .txt b{color:var(--ink);}
+
+.qa{background:var(--paper-raised); border:1.2px solid var(--line); border-radius:10px; padding:14px 16px; margin:14px 0; max-width:70ch;}
+.qa .q{font-weight:600; margin:0 0 6px; font-size:14.5px;}
+.qa .q::before{content:"P — "; color:var(--accent);}
+.qa .a{margin:0; font-size:14.5px; color:var(--ink-soft);}
+
+footer.fin{padding:40px 0 10px; color:var(--ink-faint); font-size:13px; text-align:center;}
+</style>
+
+<div class="portada">
+  <div class="wrap">
+    <p class="eyebrow">Modelos Matemáticos para la IA · Mini-proyecto 1 · Reviews-Sentimientos</p>
+    <h1>Anatomía del Clasificador</h1>
+    <p class="lead">Un recorrido de extremo a extremo — de la pregunta matemática al código que corre hoy — para que cualquiera de la audiencia pueda seguir, línea por línea, cómo una reseña de cine se convierte en "Positivo", "Negativo" o "Neutro".</p>
+    <div class="meta-row">
+      <span>15 secciones</span>
+      <span>·</span>
+      <span>código real de <span class="mono">src/</span>, no pseudocódigo</span>
+      <span>·</span>
+      <span>incluye el error de hipótesis y su corrección</span>
+    </div>
+  </div>
+</div>
+
+<nav class="toc-bar">
+  <div class="toc-bar-inner">
+    <a class="toc-pill" href="#s1">1. Matemática</a>
+    <a class="toc-pill" href="#s2">2. Dataset</a>
+    <a class="toc-pill" href="#s3">3. Descarga</a>
+    <a class="toc-pill" href="#s4">4. Orden</a>
+    <a class="toc-pill" href="#s5">5. Texto</a>
+    <a class="toc-pill" href="#s6">6. Jaccard</a>
+    <a class="toc-pill" href="#s7">7. TF-IDF</a>
+    <a class="toc-pill" href="#s8">8. Similitudes</a>
+    <a class="toc-pill" href="#s9">9. k-NN</a>
+    <a class="toc-pill" href="#s10">10. Centroide</a>
+    <a class="toc-pill" href="#s11">11. Evaluación</a>
+    <a class="toc-pill" href="#s12">12. Orquestación</a>
+    <a class="toc-pill" href="#s13">13. Resultados</a>
+    <a class="toc-pill" href="#s14">14. Mapa</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<div class="toc-box">
+  <p class="tt">Índice</p>
+  <ol>
+    <li><a href="#s1">La base matemática (recapitulación)</a></li>
+    <li><a href="#s2">Por qué MuchoCine y no otro dataset</a></li>
+    <li><a href="#s3">Descarga y transformación a CSV</a></li>
+    <li><a href="#s4">El orden en que construimos todo, y por qué</a></li>
+    <li><a href="#s5">Preprocesamiento de texto</a></li>
+    <li><a href="#s6">Representación para Jaccard: el conjunto</a></li>
+    <li><a href="#s7">Representación para Coseno: TF-IDF</a></li>
+    <li><a href="#s8">Las fórmulas de similitud, vectorizadas</a></li>
+    <li><a href="#s9">k-NN: cómo vota</a></li>
+    <li><a href="#s10">El centroide supervisado ("k-means modificado")</a></li>
+    <li><a href="#s11">Evaluación: matriz de confusión a mano</a></li>
+    <li><a href="#s12">Orquestación: run_experiment.py</a></li>
+    <li><a href="#s13">Resultados y la corrección de la hipótesis</a></li>
+    <li><a href="#s14">Mapa: teoría → código, línea por línea</a></li>
+  </ol>
+</div>
+
+<!-- ============================================================ -->
+<section class="parte" id="s1">
+  <h2><span class="num-tag">1</span>La base matemática (recapitulación)</h2>
+  <p class="subt">Esto ya lo dejamos por escrito y validado en las notas del proyecto — aquí solo el resumen que hace falta para entender por qué el código está armado como está.</p>
+
+  <p>El problema es de <b>aprendizaje supervisado no paramétrico</b>: ya tenemos reseñas etiquetadas (Positivo/Negativo/Neutro) y queremos ubicar una reseña nueva entre esas categorías, no descubrirlas — por eso <span class="mono">k-NN</span>, no <span class="mono">k-means</span> clásico. La pregunta que quedó abierta fue con qué <b>distancia</b> medir "cerca".</p>
+
+  <p>Se descartaron las distancias de Minkowski (Manhattan, Euclidiana, Chebyshev) por la <b>maldición de la dimensionalidad</b>: convertir texto en un vector de longitud igual al vocabulario global produce vectores casi todo ceros, y las distancias tienden a volverse ortogonales entre sí (todo parece "igual de lejos" de todo). Quedaron dos candidatas:</p>
+
+  <div class="callout callout-math">
+    <p class="tt">Jaccard — conjuntos</p>
+    <p>Cada texto es un <i>conjunto</i> de palabras. \( D_J(A,B) = 1 - \dfrac{|A\cap B|}{|A\cup B|} \). El denominador es <i>local</i> a cada par de textos que se compara — nunca entra el vocabulario completo — así que no sufre la maldición de la dimensionalidad. Debilidad: solo ve presencia/ausencia, no le importa si una palabra se repite 1 vez o 10.</p>
+  </div>
+  <div class="callout callout-math">
+    <p class="tt">Coseno — vectores TF-IDF</p>
+    <p>Cada texto es un vector donde cada palabra pesa según \( \text{TF} \times \text{IDF} \), con \( \text{TF}=\frac{\text{veces que aparece}}{\text{palabras del texto}} \) y \( \text{IDF}=\ln\!\frac{N}{\text{df}} \). La similitud es el ángulo entre vectores: \( \cos(A,B)=\dfrac{A\cdot B}{\|A\|\|B\|} \). Sí distingue intensidad (repetición), y al normalizar por la magnitud tampoco sufre la maldición de la dimensionalidad.</p>
+  </div>
+
+  <p>La conclusión teórica fue: <b>coseno debería ganarle a Jaccard</b> porque captura intensidad y Jaccard no. Guarda esa frase — en la <a href="#s13">sección 13</a> vas a ver que los datos reales dijeron otra cosa, y por qué eso terminó siendo el hallazgo más interesante de todo el proyecto en vez de un error a esconder.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s2">
+  <h2><span class="num-tag">2</span>Por qué MuchoCine y no otro dataset</h2>
+  <p class="subt">Los requisitos que se buscaron, las opciones que se compararon, y por qué ganó esta.</p>
+
+  <h4>Requisitos</h4>
+  <ul>
+    <li>Reseñas <b>reales</b> (no tuits, no texto sintético) — el tema del grupo es literalmente "reviews-sentimientos".</li>
+    <li>Etiqueta de <b>3 clases</b> — Positivo / Negativo / Neutro, no solo binaria.</li>
+    <li>Tamaño suficiente para que k-NN con distintas distancias tenga con qué trabajar — ni tan chico que todo sea ruido, ni tan gigante que sea imposible de correr para la entrega.</li>
+    <li>En español, para no mezclar dos idiomas en el mismo vocabulario sin razón.</li>
+    <li>Descargable sin fricción (sin pedir acceso institucional que retrase la entrega).</li>
+  </ul>
+
+  <h4>Opciones consideradas</h4>
+  <div class="tabla-wrap">
+    <table class="mapa">
+      <thead><tr><th>Dataset</th><th>Por qué se descartó / qué le faltaba</th></tr></thead>
+      <tbody>
+        <tr><td><b>TASS (SEPLN)</b></td><td>El estándar académico de sentimiento en español, con etiquetas puestas a mano (no derivadas) — pero son <i>tuits</i>, no reseñas, y descargarlo exige registrarse en el sitio de la SEPLN.</td></tr>
+        <tr><td><b>Amazon Reviews Multi (ES)</b></td><td>Reseñas reales enormes (~200k), pero el dataset oficial fue retirado de Hugging Face a pedido de Amazon; lo que queda es un espejo comunitario, no la fuente oficial.</td></tr>
+        <tr><td><b>tyqiangz/multilingual-sentiments</b></td><td>El subset en español no son reseñas: son tuits de SemEval re-etiquetados desde categorías de <i>emoción</i> (enojo, alegría...) hacia positivo/neutro/negativo — una capa extra de traducción de etiquetas que le resta limpieza.</td></tr>
+        <tr><td><b>Hoteles/TripAdvisor (Kaggle)</b></td><td>Hay varios, pero casi todos en inglés — mezclar idiomas no aporta nada al ejercicio matemático.</td></tr>
+        <tr><td><b>MuchoCine ✓</b></td><td>3872 reseñas reales de cine en español, con calificación de 1 a 5 estrellas de la que se puede derivar limpiamente una etiqueta de 3 clases. Descarga libre, sin registro, corpus académico documentado (Cruz, Troyano, Enríquez y Ortega, 2008).</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>MuchoCine ganó por ser el único que cumplía <i>todos</i> los requisitos a la vez sin ninguna concesión grande.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s3">
+  <h2><span class="num-tag">3</span>Descarga y transformación a CSV</h2>
+  <p class="subt"><span class="file-badge">download_muchocine.py</span> — de "un repo de Hugging Face" a un CSV con 4 columnas listo para usar.</p>
+
+  <p>MuchoCine no trae la etiqueta "Positivo/Negativo/Neutro" directamente — solo <span class="mono">star_rating</span> (1 a 5). La transformación lógica que arma esa etiqueta es esta función, el corazón de todo el script:</p>
+
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>download_muchocine.py</span><span>líneas 29-34</span></div>
+    <pre><code class="snippet" data-key="estrellas"></code></pre>
+  </div>
+
+  <p>Y se usa así, sobre la columna que trae el dataset crudo:</p>
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>download_muchocine.py</span><span>línea 91</span></div>
+    <pre><code class="snippet" data-key="aplicar-sentimiento"></code></pre>
+  </div>
+  <p>Esa línea es <b>literalmente</b> dónde nace la columna <span class="mono">sentimiento</span> del CSV — todo lo que viene después (Jaccard, TF-IDF, k-NN, centroide) usa esa columna como la verdad que se quiere predecir.</p>
+
+  <div class="callout callout-finding">
+    <p class="tt">El obstáculo real: el "loading script" deprecado</p>
+    <p>El primer intento de descarga falló con <span class="mono">Dataset scripts are no longer supported</span>: las versiones recientes de la librería <span class="mono">datasets</span> ya no ejecutan por defecto el script de carga que trae el repo de <span class="mono">us-lsi/muchocine</span> (por seguridad — ese script es código Python de terceros). La solución fue pedir la copia en <b>Parquet</b> que Hugging Face genera automáticamente para casi todo dataset público, que no ejecuta ningún código, con un segundo intento de respaldo si esa rama no existiera:</p>
+  </div>
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>download_muchocine.py</span><span>líneas 59-68</span></div>
+    <pre><code class="snippet" data-key="parquet-fallback"></code></pre>
+  </div>
+
+  <p>El resto del script solo limpia texto vacío, normaliza <span class="mono">star_rating</span> a la escala 1-5 (por si viene codificado distinto según la versión del dataset) y escribe el CSV final con 4 columnas: <span class="mono">review_summary, review_body, star_rating, sentimiento</span>.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s4">
+  <h2><span class="num-tag">4</span>El orden en que construimos todo, y por qué</h2>
+  <p class="subt">No fue arbitrario — cada paso depende matemáticamente del anterior. Este es el orden real, en el orden real.</p>
+
+  <div class="paso"><div class="bola">1</div><div class="txt"><b>Definir el alcance</b> antes de escribir una sola línea: k-NN + Jaccard, k-NN + Coseno, y un tercer algoritmo — el centroide supervisado ("k-means modificado") — solo sobre Coseno, porque un centroide es un promedio y los conjuntos de Jaccard no se promedian. Esto se decidió <i>antes</i> del código para no construir algo que después no tuviera sentido matemático.</div></div>
+
+  <div class="paso"><div class="bola">2</div><div class="txt"><b>Conseguir y limpiar los datos</b> (secciones 2-3) — sin datos no hay nada que vectorizar.</div></div>
+
+  <div class="paso"><div class="bola">3</div><div class="txt"><b>Preprocesamiento de texto</b> (<span class="mono">src/texto.py</span>) — tokenizar y separar train/test. Tiene que ir antes que cualquier vectorización porque tanto la matriz binaria como la TF-IDF parten de listas de palabras, no de texto crudo.</div></div>
+
+  <div class="paso"><div class="bola">4</div><div class="txt"><b>Las dos representaciones</b> (<span class="mono">src/vectorize.py</span>) — binaria (Jaccard) y TF-IDF (Coseno). Van juntas en el mismo archivo porque comparten la primera mitad del trabajo: contar palabras y construir el vocabulario. No pueden ir antes del paso 3 (necesitan tokens) ni después del paso 5 (las funciones de similitud necesitan estas matrices para existir).</div></div>
+
+  <div class="paso"><div class="bola">5</div><div class="txt"><b>Las fórmulas de similitud</b> (<span class="mono">src/similitud.py</span>) — reciben las matrices del paso 4 y calculan Jaccard/coseno entre todos los pares. No pueden construirse antes de tener las matrices.</div></div>
+
+  <div class="paso"><div class="bola">6</div><div class="txt"><b>Los clasificadores</b> (<span class="mono">src/clasificadores.py</span>) — k-NN recibe una matriz de similitud ya calculada (le da igual si vino de Jaccard o de Coseno); el centroide recibe directamente la matriz TF-IDF. Ninguno de los dos puede existir sin el paso 5.</div></div>
+
+  <div class="paso"><div class="bola">7</div><div class="txt"><b>Evaluación</b> (<span class="mono">src/evaluacion.py</span>) — matriz de confusión y métricas. Necesita predicciones, que necesitan clasificadores.</div></div>
+
+  <div class="paso"><div class="bola">8</div><div class="txt"><b>Orquestación</b> (<span class="mono">run_experiment.py</span>) — el único archivo que conoce y llama a todos los anteriores, en ese mismo orden de dependencias.</div></div>
+
+  <div class="paso"><div class="bola">9</div><div class="txt"><b>Verificar antes de aceptar un resultado raro</b> (<span class="mono">barrido_k.py</span>) — cuando Jaccard le ganó a Coseno (lo contrario de la teoría), el paso siguiente no fue reportarlo de una: fue confirmar que no era un accidente de un solo valor de k, barriendo k de 1 a 75 antes de creer el resultado. Ver <a href="#s13">sección 13</a>.</div></div>
+
+  <div class="callout callout-code">
+    <p class="tt">La regla de fondo</p>
+    <p>Cada paso solo puede construirse si el anterior ya existe: no hay forma de escribir una función de similitud sin tener antes una representación vectorial, ni de clasificar sin tener antes una distancia, ni de evaluar sin tener antes una predicción. El orden del código en este documento es, literalmente, el orden de las dependencias matemáticas del problema.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s5">
+  <h2><span class="num-tag">5</span>Preprocesamiento de texto</h2>
+  <p class="subt"><span class="file-badge">src/texto.py</span> — de una reseña cruda a una lista de palabras limpia, y del CSV completo a train/test.</p>
+
+  <p><span class="mono">tokenize()</span> hace 4 cosas, en este orden: minúsculas, quita todo lo que no sea letra (puntuación, números), quita tildes, y quita <i>stopwords</i>.</p>
+
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>src/texto.py</span><span>líneas 11-46</span></div>
+    <pre><code class="snippet" data-key="tokenize"></code></pre>
+  </div>
+
+  <div class="callout callout-finding">
+    <p class="tt">Por qué hay stopwords (esto no estaba en el plan original)</p>
+    <p>La primera corrida del centroide mostró que las "palabras top" de cada clase eran <span class="mono">me, ni, sus, nos, hay, qué</span> — puro ruido gramatical. El problema: las reseñas de MuchoCine son largas (481 palabras en promedio), así que hasta con IDF castigando palabras comunes, su frecuencia bruta (TF) las volvía a inflar. La solución fue una lista de ~150 stopwords en español, filtrada <i>antes</i> de que cualquier palabra llegue al vocabulario.</p>
+  </div>
+
+  <div class="callout callout-finding">
+    <p class="tt">Un bug evitado: la ñ</p>
+    <p>Quitar tildes con normalización Unicode genérica (NFD) descompone la <span class="mono">ñ</span> en "n" + tilde combinable, y un filtro ingenuo de "quitar todo lo que sea tilde" convertiría "año" en "ano" — dos palabras completamente distintas. Por eso <span class="mono">_TABLA_ACENTOS</span> es una traducción explícita solo de <span class="mono">á é í ó ú ü</span>, dejando la ñ intacta.</p>
+  </div>
+
+  <p>El split train/test es <b>estratificado</b> — mantiene la proporción de las 3 clases en ambos conjuntos — hecho a mano en vez de con <span class="mono">sklearn.train_test_split</span>:</p>
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>src/texto.py</span><span>líneas 49-62</span></div>
+    <pre><code class="snippet" data-key="split"></code></pre>
+  </div>
+  <p>Por qué importa que sea estratificado: si por azar el test quedara con 90% de reseñas negativas, cualquier accuracy alta sería sospechosa (bastaría con predecir siempre "negativo"). Al mantener la misma proporción que el corpus completo, un accuracy alto sí significa que el modelo distingue las 3 clases, no que se aprovechó de un desbalance accidental del split.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s6">
+  <h2><span class="num-tag">6</span>Representación para Jaccard: el conjunto</h2>
+  <p class="subt"><span class="file-badge">src/vectorize.py</span> → <span class="mono">transform_binaria()</span></p>
+
+  <p>En el razonamiento matemático, la representación para Jaccard es un <b>conjunto</b>: cada palabra de la reseña es un elemento, sin orden ni posición, y solo aplican las operaciones de intersección y unión. En el código <b>no usamos <span class="mono">set()</span> de Python literal</b> — usamos una matriz binaria dispersa. Esto no es una desviación de la teoría: es la misma matemática, solo representada de otra forma para poder calcular miles de pares a la vez en vez de uno por uno.</p>
+
+  <div class="callout callout-math">
+    <p class="tt">Por qué son lo mismo</p>
+    <p>Cada fila de la matriz binaria es el <i>vector característico</i> del conjunto: una columna por palabra del vocabulario, con 1 si la palabra está en la reseña y 0 si no. Esa fila contiene exactamente la misma información que el conjunto \(\{\text{"gato","duerme"}\}\) — solo que en vez de una lista de strings, es una fila de la matriz. La sección 8 muestra por qué esta forma permite calcular \(|A\cap B|\) con un simple producto punto.</p>
+  </div>
+
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>src/vectorize.py</span><span>líneas 41-56</span></div>
+    <pre><code class="snippet" data-key="binaria"></code></pre>
+  </div>
+
+  <p><span class="mono">_matriz_conteos</span> arma primero una matriz de <i>conteos</i> (cuántas veces aparece cada palabra) porque es el mismo trabajo de base que necesita TF-IDF — ver sección 7. <span class="mono">transform_binaria</span> solo la reutiliza y aplasta cualquier conteo mayor a 0 a un simple 1: para Jaccard no importa si "malo" aparece 1 vez o 5, solo si está o no está.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s7">
+  <h2><span class="num-tag">7</span>Representación para Coseno: TF-IDF</h2>
+  <p class="subt"><span class="file-badge">src/vectorize.py</span> → <span class="mono">Vectorizador.fit()</span> y <span class="mono">transform_tfidf()</span></p>
+
+  <p>Acá sí importa la frecuencia, y las fórmulas son exactamente las derivadas a mano en el razonamiento matemático:</p>
+  <div class="callout callout-math">
+    <p>\( \text{TF}(palabra,texto) = \dfrac{\text{veces que aparece}}{\text{total de palabras del texto}} \) &nbsp;·&nbsp; \( \text{IDF}(palabra) = \ln\!\dfrac{N_{train}}{\text{df}} \)</p>
+  </div>
+
+  <h4>Paso 1 — vocabulario e IDF, solo con train</h4>
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>src/vectorize.py</span><span>líneas 26-39</span></div>
+    <pre><code class="snippet" data-key="fit"></code></pre>
+  </div>
+  <div class="callout callout-finding">
+    <p class="tt">Por qué "solo con train" (fuga de datos)</p>
+    <p>El vocabulario y el IDF se calculan <i>únicamente</i> sobre las reseñas de entrenamiento — el test nunca influye en qué palabras existen o qué tan "rara" es cada una. Si el IDF se calculara sobre todo el corpus, el modelo estaría usando, indirectamente, información de las reseñas que se supone está "adivinando" — eso se llama <i>fuga de datos</i> (data leakage) e infla artificialmente el accuracy. No estaba en el razonamiento teórico original, pero es la misma clase de rigor que ya aplicaban ahí: medir bien, sin trampa.</p>
+  </div>
+
+  <h4>Paso 2 — TF, luego IDF, en ese orden</h4>
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>src/vectorize.py</span><span>líneas 58-65</span></div>
+    <pre><code class="snippet" data-key="tfidf"></code></pre>
+  </div>
+  <p>El orden importa: primero se arma la matriz de <i>conteos</i> crudos (la misma que usa Jaccard — por eso ambas representaciones viven en la misma clase), después se divide cada fila por su propia longitud para obtener TF, y solo al final se multiplica columna por columna por el vector de IDF (que ya se calculó una vez en <span class="mono">fit()</span>, no se recalcula en cada <span class="mono">transform</span>).</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s8">
+  <h2><span class="num-tag">8</span>Las fórmulas de similitud, vectorizadas</h2>
+  <p class="subt"><span class="file-badge">src/similitud.py</span> — la fórmula exacta del razonamiento matemático, calculada para miles de pares a la vez.</p>
+
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>src/similitud.py</span><span>líneas 10-31</span></div>
+    <pre><code class="snippet" data-key="similitud"></code></pre>
+  </div>
+
+  <h4>Jaccard: la intersección es un producto punto</h4>
+  <p>Si <span class="mono">bin_a</span> y <span class="mono">bin_b</span> son filas binarias, su producto punto suma 1 exactamente en las posiciones donde <i>ambas</i> tienen 1 — que es, por definición, \(|A \cap B|\). \(|A \cup B|\) se arma con la regla de inclusión-exclusión: \(|A|+|B|-|A\cap B|\), donde \(|A|\) es simplemente la suma de la fila (cuántas palabras tiene el conjunto). No hay ningún ciclo comparando palabra por palabra — es álgebra de matrices haciendo el mismo trabajo que haría un <span class="mono">set.intersection()</span>, para 774×3097 pares a la vez.</p>
+
+  <h4>Coseno: producto punto sobre norma</h4>
+  <p><span class="mono">vec_a.dot(vec_b.T)</span> es el numerador \(A\cdot B\) de la fórmula. Las normas \(\|A\|\) y \(\|B\|\) son la raíz de la suma de cuadrados de cada fila — literalmente <span class="mono">vec_a.multiply(vec_a).sum(axis=1)</span> antes de la raíz. El resultado es una matriz de 774×3097 similitudes, una por cada par (reseña de test, reseña de train).</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s9">
+  <h2><span class="num-tag">9</span>k-NN: cómo vota</h2>
+  <p class="subt"><span class="file-badge">src/clasificadores.py</span> → <span class="mono">KNNClasificador</span></p>
+
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>src/clasificadores.py</span><span>líneas 22-45</span></div>
+    <pre><code class="snippet" data-key="knn"></code></pre>
+  </div>
+
+  <p>Este clasificador <b>no sabe si la matriz que recibió vino de Jaccard o de Coseno</b> — solo sabe que números más altos significan "más similar". Por eso el mismo código sirve para los dos experimentos: la diferencia entre "k-NN + Jaccard" y "k-NN + Coseno" está toda en qué matriz se le pasa, no en el clasificador.</p>
+
+  <div class="paso"><div class="bola">1</div><div class="txt">Por cada reseña de test, <span class="mono">np.argsort(fila)[::-1][:k]</span> ordena todas las similitudes de mayor a menor y toma las primeras k — los k vecinos más parecidos.</div></div>
+  <div class="paso"><div class="bola">2</div><div class="txt">Se cuenta cuántos de esos k vecinos son de cada clase (<span class="mono">Counter</span>).</div></div>
+  <div class="paso"><div class="bola">3</div><div class="txt">Gana la clase con más votos. Si hay <b>empate</b>, no se rompe al azar: gana la clase cuya similitud acumulada entre los vecinos empatados sea mayor — sigue siendo una decisión basada en cercanía, no en el orden en que Python recorrió el diccionario.</div></div>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s10">
+  <h2><span class="num-tag">10</span>El centroide supervisado ("k-means modificado")</h2>
+  <p class="subt"><span class="file-badge">src/clasificadores.py</span> → <span class="mono">CentroideClasificador</span></p>
+
+  <p>Esta es la idea de Rocchio / Nearest Centroid: en vez de que k-means <i>descubra</i> los centroides iterando sin supervisión, se usan las etiquetas que ya existen para <i>construir</i> un centroide por clase directamente — el promedio de todos los vectores TF-IDF de esa clase.</p>
+
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>src/clasificadores.py</span><span>líneas 54-73</span></div>
+    <pre><code class="snippet" data-key="centroide"></code></pre>
+  </div>
+
+  <div class="callout callout-math">
+    <p class="tt">Por qué solo Coseno, nunca Jaccard</p>
+    <p>Un centroide es un <b>promedio</b>, y solo se puede promediar en un espacio vectorial. Jaccard trabaja sobre conjuntos, y no existe un "conjunto promedio" bien definido de la misma manera en que existe un vector promedio. Por eso <span class="mono">CentroideClasificador.fit()</span> recibe <span class="mono">tfidf_train</span>, nunca la matriz binaria — es matemáticamente imposible construirlo con Jaccard sin inventar una definición nueva de "promedio de conjuntos".</p>
+  </div>
+
+  <p><span class="mono">predecir()</span> reutiliza <span class="mono">coseno_similitud</span> de la sección 8 — compara cada reseña de test contra solo 3 puntos (un centroide por clase) en vez de contra las 3097 reseñas de train, por eso es ~30-50x más rápido que k-NN en la práctica (ver sección 13).</p>
+
+  <p><span class="mono">top_terminos_por_clase()</span> es la parte que k-NN nunca podría dar: como el centroide es un vector real en el mismo espacio que las palabras, se puede ordenar y leer directamente qué palabras pesan más en "Positivo" vs "Negativo" — un resumen interpretable del vocabulario típico de cada clase, algo que un modelo basado en instancias (k-NN) no resume nunca porque nunca deja de ser "todos los puntos de entrenamiento".</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s11">
+  <h2><span class="num-tag">11</span>Evaluación: matriz de confusión a mano</h2>
+  <p class="subt"><span class="file-badge">src/evaluacion.py</span> — sin <span class="mono">sklearn.metrics</span>, tal como pidió la profesora al final del enunciado.</p>
+
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>src/evaluacion.py</span><span>líneas 10-29</span></div>
+    <pre><code class="snippet" data-key="confusion"></code></pre>
+  </div>
+  <p><span class="mono">matriz_confusion</span> recorre cada par (etiqueta real, etiqueta predicha) y suma 1 en la celda correspondiente — la diagonal son los aciertos, todo lo demás son errores clasificados por tipo (qué se confundió con qué). <span class="mono">metricas_por_clase</span> lee esa misma matriz para sacar precisión, recall y F1 de cada clase con las fórmulas estándar: verdaderos positivos sobre la fila y columna correspondiente.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s12">
+  <h2><span class="num-tag">12</span>Orquestación: run_experiment.py</h2>
+  <p class="subt">El único archivo que conoce a todos los demás — en el mismo orden de dependencias de la sección 4.</p>
+
+  <div class="snippet-wrap">
+    <div class="snippet-head"><span>run_experiment.py</span><span>líneas 54-68 (extracto)</span></div>
+    <pre><code class="snippet" data-key="orquestacion"></code></pre>
+  </div>
+  <p>De ahí en adelante, el script corre los 3 experimentos uno por uno (Jaccard, Coseno, Centroide), cronometrando cada uno con <span class="mono">time.perf_counter()</span>, y guarda matrices de confusión en PNG, métricas por clase y las palabras top del centroide en <span class="mono">resultados/</span>.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s13">
+  <h2><span class="num-tag">13</span>Resultados y la corrección de la hipótesis</h2>
+  <p class="subt">El momento más importante del proyecto no fue cuando la teoría se confirmó — fue cuando no se confirmó, y lo que se hizo después.</p>
+
+  <table class="resultados-tabla">
+    <thead><tr><th>Modelo</th><th>Accuracy</th><th>Tiempo (774 predicciones)</th></tr></thead>
+    <tbody>
+      <tr><td>k-NN + Jaccard</td><td>57.4%</td><td>0.52s</td></tr>
+      <tr><td>k-NN + Coseno/TF-IDF</td><td>51.3%</td><td>0.32s</td></tr>
+      <tr class="win"><td>Centroide supervisado + Coseno</td><td>59.9%</td><td>0.01s</td></tr>
+    </tbody>
+  </table>
+
+  <h4>La hipótesis que falló</h4>
+  <p>El razonamiento teórico (sección 1) predecía que Coseno le ganaría a Jaccard en k-NN, porque captura intensidad y Jaccard no. Pasó lo contrario. Antes de reportarlo como hallazgo, se verificó que no fuera un accidente del k elegido: se corrió <span class="mono">barrido_k.py</span> probando k de 1 a 75, reutilizando las mismas matrices de similitud para no recalcular Jaccard/Coseno en cada corrida.</p>
+
+  <div class="qa">
+    <p class="q">¿Fue un error de la teoría?</p>
+    <p class="a">No — fue una teoría incompleta en su alcance. El argumento de "Coseno > Jaccard" es válido para textos <i>cortos</i>, como el ejemplo "gato duerme" / "gato corre" de las notas originales. Las reseñas de MuchoCine promedian 481 palabras (hasta 4585). Con un vocabulario de ~33 mil palabras tras quitar stopwords, el TF de cada palabra en un documento tan largo se vuelve minúsculo (1 entre cientos), diluyendo el vector TF-IDF entre miles de dimensiones de peso parecido. Jaccard, al no importarle la frecuencia y comparar solo presencia/ausencia con denominador local, no sufre ese efecto de dilución. La corrección no invalida el razonamiento original: lo hace más preciso, con su condición de validez explícita.</p>
+  </div>
+
+  <p>El centroide, que usa exactamente el mismo TF-IDF al que le fue peor en k-NN, terminó ganando de todas formas — <b>promediar</b> todas las reseñas de una clase en un solo centroide recupera una señal de clase mucho más limpia que comparar contra vectores individuales diluidos uno por uno.</p>
+
+  <h4>La segunda hipótesis que tampoco se confirmó (y también es un resultado válido)</h4>
+  <p>La predicción original era que el centroide perjudicaría específicamente a "Neutro", por promediar reseñas heterogéneas entre sí. Los datos dijeron lo contrario: el F1 de "Neutro" con el centroide (0.45) fue <i>mejor</i> que con k-NN + Coseno (0.35) y comparable a k-NN + Jaccard (0.46). Lo que sí se sostuvo en los tres métodos: "Neutro" es siempre la clase más débil, confundida con Negativo y Positivo casi por igual — el patrón esperable de una categoría intermedia sin un vocabulario tan distintivo como los extremos.</p>
+
+  <div class="callout callout-finding">
+    <p class="tt">Por qué esto fortalece el proyecto, no lo debilita</p>
+    <p>Plantear una hipótesis, medirla con rigor (barrido de k, no un solo punto), encontrar que no se cumple, y explicar <i>por qué</i> con una hipótesis nueva basada en una característica real de los datos (la longitud de las reseñas) — eso es el método científico funcionando, no un error a esconder. Es, de hecho, el mejor material posible para la presentación: muestra que el grupo entiende el <i>porqué</i> matemático detrás de cada técnica, no solo que sabe ejecutar código.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="parte" id="s14">
+  <h2><span class="num-tag">14</span>Mapa: teoría → código, línea por línea</h2>
+  <p class="subt">Cada concepto del razonamiento matemático original, y exactamente dónde vive en el código.</p>
+
+  <div class="tabla-wrap">
+    <table class="mapa">
+      <thead><tr><th>Concepto teórico</th><th>Dónde vive en el código</th></tr></thead>
+      <tbody>
+        <tr><td>Texto → conjunto de palabras</td><td><span class="mono">src/texto.py::tokenize()</span> produce la lista; <span class="mono">src/vectorize.py::transform_binaria()</span> la convierte en el vector característico del conjunto</td></tr>
+        <tr><td>\(D_J(A,B)=1-\frac{|A\cap B|}{|A\cup B|}\)</td><td><span class="mono">src/similitud.py::jaccard_similitud()</span> — intersección = producto punto de filas binarias</td></tr>
+        <tr><td>\(\text{TF}=\frac{\text{conteo}}{\text{longitud}}\)</td><td><span class="mono">src/vectorize.py::transform_tfidf()</span>, línea con <span class="mono">conteos.multiply(1.0/largo_doc[:,None])</span></td></tr>
+        <tr><td>\(\text{IDF}=\ln(N/\text{df})</td><td><span class="mono">src/vectorize.py::fit()</span>, línea <span class="mono">self.idf = np.log(...)</span> — calculado una sola vez, solo con train</td></tr>
+        <tr><td>\(\cos(A,B)=\frac{A\cdot B}{\|A\|\|B\|}\)</td><td><span class="mono">src/similitud.py::coseno_similitud()</span></td></tr>
+        <tr><td>k-NN (voto de mayoría)</td><td><span class="mono">src/clasificadores.py::KNNClasificador.predecir()</span></td></tr>
+        <tr><td>k-means "modificado" (centroide etiquetado)</td><td><span class="mono">src/clasificadores.py::CentroideClasificador.fit()</span> — <span class="mono">tfidf_train[mask].mean(axis=0)</span> por clase</td></tr>
+        <tr><td>Maldición de la dimensionalidad (por qué no Minkowski)</td><td>Nunca implementada a propósito — es la ausencia de un <span class="mono">minkowski_similitud()</span> en <span class="mono">src/similitud.py</span>, documentada como decisión en la sección 1</td></tr>
+        <tr><td>Matriz de confusión y métricas</td><td><span class="mono">src/evaluacion.py::matriz_confusion()</span> y <span class="mono">metricas_por_clase()</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div>
+
+<footer class="fin">Documento generado para acompañar la presentación del mini-proyecto · código completo en <span class="mono">Brain/5. Apps/Mini-proyecto Sentimientos/</span></footer>
+
+<script>
+const SNIPPETS = {
+"estrellas": `def estrellas_a_sentimiento(star_rating: int) -> str:
+    if star_rating <= 2:
+        return "negativo"
+    if star_rating == 3:
+        return "neutro"
+    return "positivo"`,
+
+"aplicar-sentimiento": `df["sentimiento"] = df["star_rating"].apply(estrellas_a_sentimiento)`,
+
+"parquet-fallback": `ds = None
+errores = []
+try:
+    ds = load_dataset("us-lsi/muchocine", revision="refs/convert/parquet")
+except Exception as e:
+    errores.append(f"Vía Parquet auto-convertido: {e}")
+    try:
+        ds = load_dataset("us-lsi/muchocine", trust_remote_code=True)
+    except Exception as e2:
+        errores.append(f"Vía script original (trust_remote_code=True): {e2}")`,
+
+"tokenize": `_TOKEN_RE = re.compile(r"[^\\W\\d_]+", re.UNICODE)  # letras (incluye acentos/ñ), sin dígitos ni puntuación
+
+_TABLA_ACENTOS = str.maketrans("áéíóúü", "aeiouu")
+
+def _quitar_acentos(palabra: str) -> str:
+    """está/esta, según/segun -> misma forma [...]
+    Traducción explícita en vez de NFD genérico porque NFD
+    descompone la ñ en n + tilde, y "año" no puede volverse "ano"."""
+    return palabra.translate(_TABLA_ACENTOS)
+
+STOPWORDS_ES = frozenset("""
+a al algo algunas algunos ante antes como con contra cual cuando de del desde
+donde durante e el ella ellas ellos en entre era erais eramos eran eres es esa
+... (150+ palabras)
+""".split())
+
+def tokenize(text: str) -> List[str]:
+    """Minúsculas, sin acentos, sin puntuación ni números ni stopwords."""
+    crudos = (_quitar_acentos(t) for t in _TOKEN_RE.findall(text.lower()))
+    return [t for t in crudos if t not in STOPWORDS_ES and len(t) > 1]`,
+
+"split": `def split_train_test(df: pd.DataFrame, label_col: str, test_size: float = 0.2, seed: int = 42):
+    """Split estratificado hecho a mano (mantiene la proporción de cada clase
+    en train y test) para no depender de scikit-learn solo por esto.
+    """
+    rng = np.random.default_rng(seed)
+    test_idx = []
+    for _, grupo in df.groupby(label_col):
+        n_test = max(1, round(len(grupo) * test_size))
+        idx = rng.choice(grupo.index.to_numpy(), size=n_test, replace=False)
+        test_idx.extend(idx)
+    test_idx = set(test_idx)
+    df_test = df.loc[df.index.isin(test_idx)].reset_index(drop=True)
+    df_train = df.loc[~df.index.isin(test_idx)].reset_index(drop=True)
+    return df_train, df_test`,
+
+"binaria": `def _matriz_conteos(self, docs_tokenizados):
+    rows, cols, data = [], [], []
+    for i, tokens in enumerate(docs_tokenizados):
+        conteo = Counter(t for t in tokens if t in self.vocab)
+        for palabra, c in conteo.items():
+            rows.append(i)
+            cols.append(self.vocab[palabra])
+            data.append(c)
+    n_docs = len(docs_tokenizados)
+    return csr_matrix((data, (rows, cols)), shape=(n_docs, len(self.vocab)), dtype=float)
+
+def transform_binaria(self, docs_tokenizados):
+    """Presencia/ausencia de cada palabra del vocabulario — para Jaccard."""
+    m = self._matriz_conteos(docs_tokenizados)
+    m.data[:] = 1.0
+    return m`,
+
+"fit": `def fit(self, docs_tokenizados):
+    df_counter = Counter()
+    for tokens in docs_tokenizados:
+        df_counter.update(set(tokens))
+
+    # descartamos palabras rarísimas (aparecen en < min_df textos): no aportan
+    # nada a Jaccard/coseno y solo inflan el vocabulario y el tiempo de cómputo.
+    vocab_words = [w for w, df in df_counter.items() if df >= self.min_df]
+    self.vocab = {w: i for i, w in enumerate(vocab_words)}
+    self.n_train_docs = len(docs_tokenizados)
+
+    df_vec = np.array([df_counter[w] for w in vocab_words], dtype=float)
+    self.idf = np.log(self.n_train_docs / df_vec)
+    return self`,
+
+"tfidf": `def transform_tfidf(self, docs_tokenizados):
+    """TF x IDF — para similitud de coseno."""
+    conteos = self._matriz_conteos(docs_tokenizados)
+    largo_doc = np.asarray(conteos.sum(axis=1)).flatten()
+    largo_doc[largo_doc == 0] = 1  # evita 0/0 en textos vacíos tras filtrar vocab
+    tf = conteos.multiply(1.0 / largo_doc[:, None]).tocsr()
+    tfidf = tf.multiply(self.idf[None, :]).tocsr()
+    return tfidf`,
+
+"similitud": `def jaccard_similitud(bin_a, bin_b):
+    """D_J = 1 - |A∩B|/|A∪B|  ->  acá devolvemos 1-D_J = |A∩B|/|A∪B|."""
+    interseccion = bin_a.dot(bin_b.T).toarray()
+    tam_a = np.asarray(bin_a.sum(axis=1)).flatten()
+    tam_b = np.asarray(bin_b.sum(axis=1)).flatten()
+    union = tam_a[:, None] + tam_b[None, :] - interseccion
+    union[union == 0] = 1  # dos textos vacíos: similitud 0 por convención
+    return interseccion / union
+
+
+def coseno_similitud(vec_a, vec_b):
+    """cos(A,B) = (A·B) / (||A|| ||B||)"""
+    producto_punto = vec_a.dot(vec_b.T).toarray()
+    norma_a = np.sqrt(np.asarray(vec_a.multiply(vec_a).sum(axis=1)).flatten())
+    norma_b = np.sqrt(np.asarray(vec_b.multiply(vec_b).sum(axis=1)).flatten())
+    denominador = norma_a[:, None] * norma_b[None, :]
+    denominador[denominador == 0] = 1
+    return producto_punto / denominador`,
+
+"knn": `class KNNClasificador:
+    def __init__(self, k: int = 5):
+        self.k = k
+
+    def predecir(self, matriz_similitud, y_train):
+        y_train = np.asarray(y_train)
+        predicciones = []
+        for fila in matriz_similitud:
+            vecinos_idx = np.argsort(fila)[::-1][: self.k]
+            vecinos_labels = y_train[vecinos_idx]
+            vecinos_sim = fila[vecinos_idx]
+
+            conteo = Counter(vecinos_labels)
+            max_votos = max(conteo.values())
+            empatados = [clase for clase, votos in conteo.items() if votos == max_votos]
+
+            if len(empatados) == 1:
+                predicciones.append(empatados[0])
+            else:
+                # desempate: la clase empatada cuya similitud acumulada entre
+                # los k vecinos sea mayor (sigue midiendo "cercanía").
+                suma_sim = {c: vecinos_sim[vecinos_labels == c].sum() for c in empatados}
+                predicciones.append(max(suma_sim, key=suma_sim.get))
+        return predicciones`,
+
+"centroide": `class CentroideClasificador:
+    def __init__(self):
+        self.clases = []
+        self.centroides = None
+
+    def fit(self, tfidf_train, y_train):
+        y_train = np.asarray(y_train)
+        self.clases = sorted(set(y_train))
+        filas = []
+        for clase in self.clases:
+            mask = y_train == clase
+            centroide = np.asarray(tfidf_train[mask].mean(axis=0)).flatten()
+            filas.append(centroide)
+        self.centroides = csr_matrix(np.vstack(filas))
+        return self
+
+    def predecir(self, tfidf_test):
+        sim = coseno_similitud(tfidf_test, self.centroides)  # (n_test, n_clases)
+        idx_pred = np.argmax(sim, axis=1)
+        return [self.clases[i] for i in idx_pred]`,
+
+"confusion": `def matriz_confusion(y_true, y_pred, clases):
+    idx = {c: i for i, c in enumerate(clases)}
+    cm = np.zeros((len(clases), len(clases)), dtype=int)
+    for t, p in zip(y_true, y_pred):
+        cm[idx[t], idx[p]] += 1
+    return pd.DataFrame(cm, index=[f"real:{c}" for c in clases], columns=[f"pred:{c}" for c in clases])
+
+
+def metricas_por_clase(cm, clases):
+    cm_np = cm.to_numpy()
+    filas = []
+    for i, clase in enumerate(clases):
+        vp = cm_np[i, i]
+        fp = cm_np[:, i].sum() - vp
+        fn = cm_np[i, :].sum() - vp
+        precision = vp / (vp + fp) if (vp + fp) > 0 else 0.0
+        recall = vp / (vp + fn) if (vp + fn) > 0 else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+        filas.append({"clase": clase, "precision": precision, "recall": recall, "f1": f1, "soporte": int(cm_np[i, :].sum())})
+    return pd.DataFrame(filas).set_index("clase")`,
+
+"orquestacion": `train_tok = [tokenize(t) for t in df_train["review_body"]]
+test_tok = [tokenize(t) for t in df_test["review_body"]]
+y_train = df_train["sentimiento"].tolist()
+y_test = df_test["sentimiento"].tolist()
+
+vec = Vectorizador(min_df=args.min_df).fit(train_tok)
+
+bin_train = vec.transform_binaria(train_tok)
+bin_test = vec.transform_binaria(test_tok)
+tfidf_train = vec.transform_tfidf(train_tok)
+tfidf_test = vec.transform_tfidf(test_tok)`,
+};
+
+function hlPython(raw) {
+  let code = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const stash = [];
+  // Placeholders en el rango Unicode "Private Use Area" (U+E000+): no son
+  // dígitos ni letras, así que las regex de números/keywords que corren
+  // después no los pueden confundir con código real.
+  const ph = i => String.fromCodePoint(0xE000 + i);
+  const protect = (re, cls) => {
+    code = code.replace(re, m => {
+      const token = ph(stash.length);
+      stash.push('<span class="tk-' + cls + '">' + m + '</span>');
+      return token;
+    });
+  };
+  protect(/"""[\s\S]*?"""/g, 'com');
+  protect(/#.*$/gm, 'com');
+  protect(/(?:rf|fr|r|f)?"(?:[^"\\\n]|\\.)*"/g, 'str');
+  protect(/(?:rf|fr|r|f)?'(?:[^'\\\n]|\\.)*'/g, 'str');
+  code = code.replace(/\b(def|class)( +)(\w+)/g, (m,a,b,name)=> '<span class="tk-kw">'+a+'</span>'+b+'<span class="tk-fn">'+name+'</span>');
+  code = code.replace(/\b(import|from|return|if|elif|else|for|while|in|not|and|or|is|try|except|as|with|lambda|pass|break|continue|yield|raise|global)\b/g, '<span class="tk-kw">$1</span>');
+  code = code.replace(/\b(None|True|False|self)\b/g, '<span class="tk-const">$1</span>');
+  code = code.replace(/\b(len|range|enumerate|zip|list|dict|set|frozenset|sorted|max|min|sum|round|float|int|str|print|isinstance|super|open)\b(?=\()/g, '<span class="tk-builtin">$1</span>');
+  code = code.replace(/(@\w+)/g, '<span class="tk-dec">$1</span>');
+  code = code.replace(/\b(\d+\.?\d*)\b/g, '<span class="tk-num">$1</span>');
+  code = code.replace(/[\uE000-\uF8FF]/g, ch => stash[ch.codePointAt(0) - 0xE000]);
+  return code;
+}
+
+document.querySelectorAll('code.snippet').forEach(el => {
+  const key = el.getAttribute('data-key');
+  if (SNIPPETS[key]) el.innerHTML = hlPython(SNIPPETS[key]);
+});
+</script>
